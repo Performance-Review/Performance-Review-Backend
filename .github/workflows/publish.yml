@@ -1,0 +1,62 @@
+on:
+  push:
+    branches:
+      - staging
+    tags:
+      - 'v*'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.9.x"
+      - run: ls .github/actions/install
+      - run: pwd
+      - uses: ./.github/actions/install
+      - uses: ./.github/actions/build
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # api
+      - name: Docker meta
+        id: api-meta
+        uses: docker/metadata-action@v3
+        with:
+          images: smmoosavi/performance-review-api
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,enable=${{github.ref == 'refs/heads/staging' }},value=dev-${{ github.run_number }}-{{sha}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: review
+          file: review/api.Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+
+      # statics
+      - name: Docker meta
+        id: statics-meta
+        uses: docker/metadata-action@v3
+        with:
+          images: smmoosavi/performance-review-statics
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,enable=${{github.ref == 'refs/heads/staging' }},value=dev-${{ github.run_number }}-{{sha}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: review
+          file: ./review/statics.Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.statics-meta.outputs.tags }}
+          labels: ${{ steps.statics-meta.outputs.labels }}
