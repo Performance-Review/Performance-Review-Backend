@@ -1,0 +1,13 @@
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.9.x'
+      - run: ls .github/actions/install
+      - run: pwd
+      - uses: ./.github/actions/install
+      - uses: ./.github/actions/build
